@@ -144,7 +144,7 @@ struct PopoverContentView: View {
             Image(systemName: "arrow.clockwise")
                 .font(.caption2)
                 .foregroundColor(.secondary)
-            Text("Price every 2 s · Top 5 every 30 s")
+            Text("Price every 5 s · Top 5 while open")
                 .font(.caption)
                 .foregroundColor(.secondary)
             Spacer()

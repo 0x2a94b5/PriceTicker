@@ -10,6 +10,10 @@ class BtcSparklineService: ObservableObject {
 
     private var timer: AnyCancellable?
     private var task: AnyCancellable?
+    private var proxyCancellable: AnyCancellable?
+    private var networkCancellable: AnyCancellable?
+    private var isStarted = false
+    private var isConnected = NetworkStatus.shared.isConnected
 
     private let url = URL(string:
         "https://fapi.binance.com/fapi/v1/klines?symbol=BTCUSDT&interval=1h&limit=24")!
@@ -24,16 +28,35 @@ class BtcSparklineService: ObservableObject {
         min(minInterval * pow(2.0, Double(min(failureStreak, 3))), maxInterval)
     }
 
+    init() {
+        proxyCancellable = NotificationCenter.default
+            .publisher(for: ProxySettings.didApplyNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.handleNetworkSettingsChanged() }
+
+        networkCancellable = NetworkStatus.shared.$isConnected
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] connected in self?.handleConnectivityChanged(connected) }
+    }
+
     func start() {
+        isStarted = true
+        guard isConnected else { return }
         fetch()
         startTimer(interval: minInterval)
     }
 
     func stop() {
+        isStarted = false
         timer = nil
+        task?.cancel()
+        task = nil
     }
 
     private func startTimer(interval: TimeInterval) {
+        guard isStarted, isConnected else { return }
         guard interval != currentInterval || timer == nil else { return }
         currentInterval = interval
         timer = Timer.publish(every: interval, on: .main, in: .common)
@@ -41,7 +64,29 @@ class BtcSparklineService: ObservableObject {
             .sink { [weak self] _ in self?.fetch() }
     }
 
+    private func handleNetworkSettingsChanged() {
+        guard isStarted, isConnected else { return }
+        failureStreak = 0
+        startTimer(interval: minInterval)
+        fetch()
+    }
+
+    private func handleConnectivityChanged(_ connected: Bool) {
+        isConnected = connected
+        guard isStarted else { return }
+        if connected {
+            failureStreak = 0
+            startTimer(interval: minInterval)
+            fetch()
+        } else {
+            timer = nil
+            task?.cancel()
+            task = nil
+        }
+    }
+
     private func fetch() {
+        guard isStarted, isConnected else { return }
         task = NetworkSession.shared.dataTaskPublisher(for: url)
             .tryMap { data, response -> [(Double, String)] in
                 guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -62,6 +107,7 @@ class BtcSparklineService: ObservableObject {
                 receiveCompletion: { [weak self] completion in
                     guard let self else { return }
                     if case .failure = completion {
+                        guard self.isConnected else { return }
                         self.failureStreak += 1
                         self.startTimer(interval: self.backoffInterval())
                     }

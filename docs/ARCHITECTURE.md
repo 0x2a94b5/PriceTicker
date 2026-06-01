@@ -69,13 +69,15 @@ consecutive failure the timer interval doubles up to a service-specific cap:
 
 | Service | Normal | Cap |
 |---------|--------|-----|
-| PriceService | 2 s | 30 s |
+| PriceService | 5 s | 30 s |
 | LeaderboardService | 30 s | 300 s |
 | BtcSparklineService | 300 s | 2400 s |
 
 Any successful response resets the streak and restarts the timer at the normal
-rate. `NWPathMonitor` in `PriceService` handles full offline detection; when
-connectivity is restored the backoff is reset immediately.
+rate. `NetworkStatus` wraps a single `NWPathMonitor` shared by all polling
+services; when connectivity is lost, active timers stop and in-flight requests
+are cancelled, then backoff resets and polling resumes when connectivity is
+restored.
 
 ### NetworkSession class with rebuild()
 
@@ -88,10 +90,10 @@ no service code needs to change when proxy settings change at runtime.
 ### ProxySettings — UI-configurable proxy
 
 `ProxySettings` is a `UserDefaults`-backed `ObservableObject`. The user opens
-the ⚙️ settings sheet in the popover, toggles the proxy switch, and enters
-host + port. Pressing **Save** calls `ProxySettings.shared.apply(...)`, which
-persists the values and calls `NetworkSession.shared.rebuild()`. The next
-outbound request from any service uses the new session automatically.
+the settings sheet in the popover, toggles the proxy switch, and enters host +
+port. Pressing **Save** calls `ProxySettings.shared.apply(...)`, which persists
+the values, rebuilds `NetworkSession`, and posts a notification so active
+services can reset backoff and retry immediately with the new session.
 
 ### Per-ticker AnyCancellable dict to prevent in-flight request leaks
 
@@ -165,9 +167,9 @@ PriceTicker/                  Project root
     │   └── TickerStore.swift         ObservableObject; CRUD + UserDefaults persistence
     ├── Services/
     │   ├── BtcSparklineService.swift 24 × 1h klines for menu bar sparkline; refreshes every 5 min
-    │   ├── LeaderboardService.swift  All-symbol 24hr ticker; extracts top-5 gainers/losers
-    │   ├── NetworkSession.swift      Class singleton; rebuilds URLSession on proxy change
-    │   └── PriceService.swift        Per-ticker 24hr poll every 2 s; NWPathMonitor; backoff
+    │   ├── LeaderboardService.swift  Visible-only all-symbol 24hr ticker; extracts top-5 gainers/losers
+    │   ├── NetworkSession.swift      Shared URLSession and NetworkStatus
+    │   └── PriceService.swift        Per-ticker 24hr poll every 5 s; shared connectivity; backoff
     ├── Views/
     │   ├── AddTickerView.swift       Symbol input + preset grid inside the popover
     │   ├── FloatingTagView.swift     Price tag pill: price + 24h change %

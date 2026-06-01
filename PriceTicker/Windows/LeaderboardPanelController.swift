@@ -37,6 +37,7 @@ class LeaderboardPanelController: ObservableObject {
 
     private func show() {
         guard panel == nil else { return }
+        leaderboard.activate("floatingPanel")
 
         let pos = savedPosition() ?? defaultPosition()
         let p   = FloatingPanel(at: pos)
@@ -76,6 +77,7 @@ class LeaderboardPanelController: ObservableObject {
         panel = nil
         isVisible = false
         UserDefaults.standard.set(false, forKey: visibleKey)
+        leaderboard.deactivate("floatingPanel")
     }
 
     // MARK: - Position persistence

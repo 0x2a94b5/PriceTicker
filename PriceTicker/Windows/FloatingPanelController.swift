@@ -124,4 +124,3 @@ class FloatingPanelController {
         return CGPoint(x: x, y: y)
     }
 }
-

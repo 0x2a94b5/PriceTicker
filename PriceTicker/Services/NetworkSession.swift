@@ -1,4 +1,6 @@
 import Foundation
+import Combine
+import Network
 
 /// Shared network layer. Exposes `dataTaskPublisher` so callers are decoupled
 /// from URLSession directly — this lets us rebuild the session transparently
@@ -37,5 +39,27 @@ final class NetworkSession {
         config.timeoutIntervalForRequest  = 8
         config.timeoutIntervalForResource = 12
         return URLSession(configuration: config)
+    }
+}
+
+final class NetworkStatus: ObservableObject {
+    static let shared = NetworkStatus()
+
+    @Published private(set) var isConnected = true
+
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "com.priceticker.network-status")
+
+    private init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            DispatchQueue.main.async {
+                self?.isConnected = path.status == .satisfied
+            }
+        }
+        monitor.start(queue: queue)
+    }
+
+    deinit {
+        monitor.cancel()
     }
 }

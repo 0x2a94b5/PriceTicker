@@ -43,6 +43,8 @@ struct LeaderboardView: View {
                 .padding(.bottom, 6)
             }
         }
+        .onAppear { leaderboard.activate("popover") }
+        .onDisappear { leaderboard.deactivate("popover") }
     }
 
     // MARK: - Section

@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import Network
 
 class PriceService: ObservableObject {
     @Published var prices: [UUID: TickerPrice] = [:]
@@ -15,11 +14,10 @@ class PriceService: ObservableObject {
     private let store: TickerStore
     private var timerCancellable: AnyCancellable?
     private var storeCancellable: AnyCancellable?
+    private var proxyCancellable: AnyCancellable?
+    private var networkCancellable: AnyCancellable?
     /// One entry per ticker — assigning a new value cancels the previous in-flight request.
     private var fetchTasks: [UUID: AnyCancellable] = [:]
-
-    private let monitor = NWPathMonitor()
-    private let monitorQueue = DispatchQueue(label: "com.priceticker.netmonitor")
 
     private let session = NetworkSession.shared
     private let decoder = JSONDecoder()
@@ -28,11 +26,11 @@ class PriceService: ObservableObject {
     // Tracks consecutive fetch *cycles* (not individual ticker failures) that had
     // at least one failure. With N tickers, all can fail in one cycle but streak
     // only increments once. Resets to 0 on any success.
-    // Interval: 2s → 4s → 8s → 16s → 30s (capped).
+    // Interval: 5s -> 10s -> 20s -> 30s (capped).
     private var failureStreak = 0
     private var cycleHadSuccess = false   // true if any ticker succeeded this cycle
-    private var currentInterval: TimeInterval = 2
-    private let minInterval: TimeInterval = 2
+    private var currentInterval: TimeInterval = 5
+    private let minInterval: TimeInterval = 5
     private let maxInterval: TimeInterval = 30
 
     private func backoffInterval() -> TimeInterval {
@@ -40,7 +38,7 @@ class PriceService: ObservableObject {
     }
 
     deinit {
-        monitor.cancel()
+        cancelAllFetches()
     }
 
     // MARK: - Init
@@ -52,31 +50,40 @@ class PriceService: ObservableObject {
             .map { $0.map { "\($0.id)\($0.symbol)\($0.marketType.rawValue)" } }
             .removeDuplicates()
             .sink { [weak self] _ in
-                guard self?.isConnected == true else { return }
-                self?.fetchAll()
+                self?.syncPollingWithWatchlist()
             }
 
-        monitor.pathUpdateHandler = { [weak self] path in
-            DispatchQueue.main.async {
-                let connected = path.status == .satisfied
-                self?.isConnected = connected
-                if connected {
-                    // Reset backoff when connectivity is restored.
-                    self?.failureStreak = 0
-                    self?.restartTimer(interval: self?.minInterval ?? 2)
-                    self?.fetchAll()
-                } else {
-                    self?.stopTimer()
-                }
-            }
+        isConnected = NetworkStatus.shared.isConnected
+        networkCancellable = NetworkStatus.shared.$isConnected
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] connected in self?.handleConnectivityChanged(connected) }
+
+        proxyCancellable = NotificationCenter.default
+            .publisher(for: ProxySettings.didApplyNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.handleNetworkSettingsChanged() }
+
+        syncPollingWithWatchlist()
+    }
+
+    private func handleConnectivityChanged(_ connected: Bool) {
+        isConnected = connected
+        if connected {
+            // Reset backoff when connectivity is restored.
+            failureStreak = 0
+            resumePollingIfNeeded(fetchImmediately: true)
+        } else {
+            stopTimer()
+            cancelAllFetches()
         }
-        monitor.start(queue: monitorQueue)
-        startTimer(interval: minInterval)
     }
 
     // MARK: - Timer
 
     private func startTimer(interval: TimeInterval) {
+        guard isConnected, !store.tickers.isEmpty else { return }
         guard timerCancellable == nil else { return }
         currentInterval = interval
         timerCancellable = Timer
@@ -87,7 +94,7 @@ class PriceService: ObservableObject {
 
     /// Restart with a new interval only when the interval actually changes.
     private func restartTimer(interval: TimeInterval) {
-        guard interval != currentInterval else { return }
+        guard interval != currentInterval || timerCancellable == nil else { return }
         timerCancellable = nil
         startTimer(interval: interval)
     }
@@ -96,9 +103,52 @@ class PriceService: ObservableObject {
         timerCancellable = nil
     }
 
+    private func resumePollingIfNeeded(fetchImmediately: Bool) {
+        guard isConnected, !store.tickers.isEmpty else {
+            stopTimer()
+            return
+        }
+        restartTimer(interval: minInterval)
+        if fetchImmediately {
+            fetchAll()
+        }
+    }
+
+    private func syncPollingWithWatchlist() {
+        pruneRemovedTickerState()
+        guard !store.tickers.isEmpty else {
+            stopTimer()
+            cancelAllFetches()
+            return
+        }
+        resumePollingIfNeeded(fetchImmediately: isConnected)
+    }
+
+    private func handleNetworkSettingsChanged() {
+        failureStreak = 0
+        resumePollingIfNeeded(fetchImmediately: true)
+    }
+
+    private func cancelAllFetches() {
+        fetchTasks.values.forEach { $0.cancel() }
+        fetchTasks.removeAll()
+    }
+
+    private func pruneRemovedTickerState() {
+        let liveIDs = Set(store.tickers.map(\.id))
+        for id in fetchTasks.keys where !liveIDs.contains(id) {
+            fetchTasks[id]?.cancel()
+            fetchTasks.removeValue(forKey: id)
+            prices.removeValue(forKey: id)
+            errors.removeValue(forKey: id)
+            lastUpdated.removeValue(forKey: id)
+        }
+    }
+
     // MARK: - Fetch
 
     private func fetchAll() {
+        guard isConnected, !store.tickers.isEmpty else { return }
         cycleHadSuccess = false
         store.tickers.forEach { fetch($0) }
     }
@@ -121,6 +171,7 @@ class PriceService: ObservableObject {
                 receiveCompletion: { [weak self] completion in
                     guard let self else { return }
                     if case .failure(let err) = completion {
+                        guard self.isConnected else { return }
                         self.errors[ticker.id] = err.localizedDescription
                         // Only increment once per cycle (after all tickers have reported).
                         if !self.cycleHadSuccess {

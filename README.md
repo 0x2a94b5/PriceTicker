@@ -15,8 +15,8 @@ A lightweight macOS menu bar app that shows real-time cryptocurrency prices as d
 
 - **BTC sparkline** — 24-hour BTC/USDT price chart renders directly inside the menu bar icon, updated every 5 minutes. Hover to see the latest price.
 - **Floating price tags** — Add any Binance Spot or Futures symbol (e.g. BTCUSDT, ETHUSDT). Each tag is a draggable, always-on-top panel showing live price + 24h change.
-- **Top 5 leaderboard** — Built-in gainers/losers panel (default view) showing the biggest movers from the Binance futures market, refreshed every 30 seconds.
-- **Real-time prices** — Binance REST API polled every 2 seconds per ticker, with adaptive backoff on network failures.
+- **Top 5 leaderboard** — Built-in gainers/losers panel (default view) showing the biggest movers from the Binance futures market, refreshed every 30 seconds while visible.
+- **Real-time prices** — Binance REST API polled every 5 seconds per ticker, with adaptive backoff on network failures.
 - **Network status dot** — Colour-coded dot on the menu bar icon: green = live, orange = offline, none = waiting.
 - **Proxy support** — Configure an HTTP proxy at runtime via the ⚙️ settings sheet — no recompile needed.
 - **Persisted state** — Window positions and the full watchlist survive app restarts.
@@ -90,8 +90,8 @@ Settings are stored in `UserDefaults` and persist across restarts.
 App             AppDelegate, PriceTickerApp
 Windows         FloatingPanel, FloatingPanelController,
                 LeaderboardPanelController
-Services        PriceService (2 s poll + backoff)
-                LeaderboardService (30 s poll + backoff)
+Services        PriceService (5 s poll + backoff)
+                LeaderboardService (visible-only 30 s poll + backoff)
                 BtcSparklineService (5 min klines)
                 NetworkSession (rebuilds on proxy change)
 Models          Ticker, TickerStore, ProxySettings

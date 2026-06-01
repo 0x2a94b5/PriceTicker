@@ -26,7 +26,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         panelController = FloatingPanelController(store: store, priceService: priceService)
-        leaderboardService.start()
         leaderboardPanelController = LeaderboardPanelController(leaderboard: leaderboardService)
         btcSparkline.start()
         setupStatusBar()
@@ -146,7 +145,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Subscribes to PriceService.fetchPulse — each successful fetch cycle
     /// triggers one lub-dub animation, then the dot goes quiet until the next fetch.
-    /// Rate naturally reflects network health: normal=2 s, backoff=up to 30 s, offline=stopped.
+    /// Rate naturally reflects network health: normal=5 s, backoff=up to 30 s, offline=stopped.
     private func observePulse() {
         pulseCancellable = priceService.fetchPulse
             .receive(on: DispatchQueue.main)

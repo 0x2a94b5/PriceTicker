@@ -4,6 +4,7 @@ import Foundation
 /// whenever settings are applied.
 final class ProxySettings: ObservableObject {
     static let shared = ProxySettings()
+    static let didApplyNotification = Notification.Name("ProxySettings.didApplyNotification")
 
     @Published private(set) var useProxy: Bool
     @Published private(set) var host: String
@@ -31,5 +32,6 @@ final class ProxySettings: ObservableObject {
         self.host     = host
         self.port     = port
         NetworkSession.shared.rebuild()
+        NotificationCenter.default.post(name: Self.didApplyNotification, object: self)
     }
 }
