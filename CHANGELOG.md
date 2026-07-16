@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replaced placeholder repository URLs with the public PriceTicker repository.
 - Aligned the app version with semantic release tags.
+- Required each automated Release to provide an explicit versioned notes file.
 
 ### Fixed
 

@@ -23,6 +23,11 @@ jobs:
             echo "Tag ${GITHUB_REF_NAME} does not match app version v${app_version}." >&2
             exit 1
           fi
+          notes_file=".github/release-notes/${GITHUB_REF_NAME}.md"
+          if [[ ! -s "${notes_file}" ]]; then
+            echo "Missing release notes: ${notes_file}" >&2
+            exit 1
+          fi
       - name: Build archive
         run: |
           set -o pipefail
@@ -48,5 +53,5 @@ jobs:
             PriceTicker.app.zip \
             PriceTicker.app.zip.sha256 \
             --verify-tag \
-            --generate-notes \
+            --notes-file ".github/release-notes/${GITHUB_REF_NAME}.md" \
             --title "PriceTicker ${GITHUB_REF_NAME}"
