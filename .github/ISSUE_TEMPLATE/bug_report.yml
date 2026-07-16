@@ -1,0 +1,63 @@
+name: Bug 报告 / Bug report
+description: 报告可复现的问题，帮助我们定位和修复。
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。提交前请搜索现有 Issue，并确保内容不包含代理凭据或个人信息。
+  - type: input
+    id: version
+    attributes:
+      label: PriceTicker 版本 / Version
+      description: Release 标签或提交哈希。
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境 / Environment
+      description: macOS 版本、Mac 芯片；源码构建请附 Xcode 版本。
+      placeholder: macOS 15.5, Apple Silicon, Xcode 16.4
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为 / Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为 / Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图 / Logs or screenshots
+      description: 请先移除代理地址、用户名、路径等敏感信息。
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交确认 / Checklist
+      options:
+        - label: 我已搜索现有 Issue，未发现重复问题。
+          required: true
+        - label: 这不是安全漏洞；安全问题会按 SECURITY.md 私下报告。
+          required: true

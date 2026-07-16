@@ -26,19 +26,41 @@ final class NetworkSession {
     private static func buildSession() -> URLSession {
         let s = ProxySettings.shared
         let config = URLSessionConfiguration.ephemeral
-        if s.useProxy && !s.host.trimmingCharacters(in: .whitespaces).isEmpty {
-            config.connectionProxyDictionary = [
-                kCFNetworkProxiesHTTPEnable:  true,
-                kCFNetworkProxiesHTTPProxy:   s.host,
-                kCFNetworkProxiesHTTPPort:    s.port,
-                kCFNetworkProxiesHTTPSEnable: true,
-                kCFNetworkProxiesHTTPSProxy:  s.host,
-                kCFNetworkProxiesHTTPSPort:   s.port,
-            ] as [AnyHashable: Any]
+        if !AppEnvironment.isRunningTests {
+            config.connectionProxyDictionary = makeProxyDictionary(
+                useProxy: s.useProxy,
+                host: s.host,
+                port: s.port
+            )
         }
         config.timeoutIntervalForRequest  = 8
         config.timeoutIntervalForResource = 12
         return URLSession(configuration: config)
+    }
+
+    /// CFNetwork expects CFString keys with CFString/CFNumber values. Converting
+    /// these explicitly avoids ambiguous Swift bridging on older macOS releases.
+    static func makeProxyDictionary(
+        useProxy: Bool,
+        host: String,
+        port: Int
+    ) -> [AnyHashable: Any]? {
+        let trimmedHost = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard useProxy, !trimmedHost.isEmpty, (1...65535).contains(port) else {
+            return nil
+        }
+
+        let enabled = NSNumber(value: true)
+        let proxyPort = NSNumber(value: port)
+        let proxyHost = NSString(string: trimmedHost)
+        return [
+            kCFNetworkProxiesHTTPEnable as String: enabled,
+            kCFNetworkProxiesHTTPProxy as String: proxyHost,
+            kCFNetworkProxiesHTTPPort as String: proxyPort,
+            kCFNetworkProxiesHTTPSEnable as String: enabled,
+            kCFNetworkProxiesHTTPSProxy as String: proxyHost,
+            kCFNetworkProxiesHTTPSPort as String: proxyPort,
+        ]
     }
 }
 

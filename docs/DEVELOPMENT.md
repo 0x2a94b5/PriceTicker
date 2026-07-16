@@ -16,18 +16,20 @@ XcodeGen is only needed if you change `project.yml`. The committed
 ## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/PriceTicker.git
+git clone https://github.com/0x2a94b5/PriceTicker.git
 cd PriceTicker
 ./scripts/bootstrap.sh
 ```
 
 `bootstrap.sh` will:
 
-1. Download XcodeGen 2.38.0 to `/tmp/xcodegen/` if not already present.
-2. Run `xcodegen generate` to produce `PriceTicker.xcodeproj`.
-3. Run `xcodebuild` in Debug mode and report the result.
+1. Download the pinned XcodeGen 2.38.0 archive into a versioned temporary cache if needed.
+2. Verify the archive SHA-256 checksum before extraction.
+3. Run `xcodegen generate` to produce `PriceTicker.xcodeproj`.
+4. Run the Debug build and unit tests with code signing disabled.
 
-The finished app is at `build/Debug/PriceTicker.app`.
+The built app is at `build/Debug/PriceTicker.app`; test results are stored under
+`build/DerivedData/Logs/Test/`.
 
 To open in Xcode instead:
 
@@ -40,11 +42,15 @@ open PriceTicker.xcodeproj
 ## Build and Run from the Command Line
 
 ```bash
-# Debug build (output → build/Debug/PriceTicker.app)
-xcodebuild -scheme PriceTicker -configuration Debug build
-
-# Show only errors and final result
-xcodebuild -scheme PriceTicker -configuration Debug build 2>&1 | grep -E "error:|BUILD"
+# Debug build and unit tests
+xcodebuild \
+  -project PriceTicker.xcodeproj \
+  -scheme PriceTicker \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  -derivedDataPath build/DerivedData \
+  CODE_SIGNING_ALLOWED=NO \
+  test
 
 # Kill any running instance and launch the new build
 pkill -x PriceTicker; sleep 1; open build/Debug/PriceTicker.app
@@ -54,13 +60,8 @@ pkill -x PriceTicker; sleep 1; open build/Debug/PriceTicker.app
 
 ## Regenerating the Xcode Project
 
-Whenever you edit `project.yml`, regenerate the `.xcodeproj`:
-
-```bash
-/tmp/xcodegen/bin/xcodegen generate
-```
-
-If XcodeGen is not yet downloaded:
+Whenever you edit `project.yml`, use the verified bootstrap process to regenerate
+and validate the `.xcodeproj`:
 
 ```bash
 ./scripts/bootstrap.sh

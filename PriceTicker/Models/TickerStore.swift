@@ -7,8 +7,12 @@ class TickerStore: ObservableObject {
     private let key     = "com.priceticker.tickers_v1"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let persistenceEnabled: Bool
 
-    init() { load() }
+    init(persistenceEnabled: Bool = !AppEnvironment.isRunningTests) {
+        self.persistenceEnabled = persistenceEnabled
+        if persistenceEnabled { load() }
+    }
 
     // MARK: - CRUD
 
@@ -37,6 +41,7 @@ class TickerStore: ObservableObject {
     // MARK: - Persistence
 
     private func save() {
+        guard persistenceEnabled else { return }
         guard let data = try? encoder.encode(tickers) else { return }
         UserDefaults.standard.set(data, forKey: key)
     }

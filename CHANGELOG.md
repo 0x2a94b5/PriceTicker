@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Chinese-first project introduction with an English companion README.
+- Community health files, issue forms, pull request template, and security policy.
+- GitHub Actions workflows for continuous integration and tagged releases.
+- Unit tests for price formatting, ticker positioning, and market endpoints.
+- SHA-256 verification for the pinned XcodeGen bootstrap archive.
+
+### Changed
+
+- Replaced placeholder repository URLs with the public PriceTicker repository.
+- Aligned the app version with semantic release tags.
+
+### Fixed
+
+- Validated proxy inputs and made CFNetwork dictionary bridge types explicit.
+- Isolated unit tests from persisted watchlists and user proxy settings.
+
 ## [1.0.0] - 2026-04-06
 
 ### Added
@@ -23,4 +43,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/bootstrap.sh` for one-command setup from a fresh clone.
 - `docs/ARCHITECTURE.md` and `docs/DEVELOPMENT.md` developer documentation.
 
-[1.0.0]: https://github.com/YOUR_USERNAME/PriceTicker/releases/tag/v1.0.0
+[Unreleased]: https://github.com/0x2a94b5/PriceTicker/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/0x2a94b5/PriceTicker/releases/tag/v1.0.0
